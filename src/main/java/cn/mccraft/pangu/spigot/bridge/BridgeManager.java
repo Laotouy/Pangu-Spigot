@@ -14,6 +14,7 @@ import cn.mccraft.pangu.spigot.server.RemoteProxy;
 import org.apache.commons.lang.ArrayUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 
 import java.io.*;
@@ -44,6 +45,7 @@ public enum  BridgeManager implements PluginMessageListener {
     public void init() {
         Bukkit.getMessenger().registerIncomingPluginChannel(PanguSpigot.getInstance(), "pangu", this);
         Bukkit.getMessenger().registerOutgoingPluginChannel(PanguSpigot.getInstance(), "pangu");
+
     }
 
     public void register(Object object) {
@@ -86,6 +88,7 @@ public enum  BridgeManager implements PluginMessageListener {
         }
     }
 
+
     public void send(Collection<Player> players, String key, byte[] bytes) {
         if (bytes.length > 30000) {
             sendMultiPart(players, key, bytes);
@@ -112,6 +115,63 @@ public enum  BridgeManager implements PluginMessageListener {
             player.sendPluginMessage(PanguSpigot.getInstance(), "pangu", b.toByteArray());
         }
     }
+    public void send(Plugin plugin, String key, byte[] bytes) {
+        if (bytes.length > 30000) {
+            sendMultiPart(plugin, key, bytes);
+            return;
+        }
+
+        ByteArrayOutputStream b = new ByteArrayOutputStream();
+        DataOutputStream out = new DataOutputStream(b);
+        try {
+            out.writeByte(0x01);
+
+            byte[] keyBytes = key.getBytes(StandardCharsets.UTF_8);
+            DataUtils.writeVarInt(out, keyBytes.length);
+            out.write(keyBytes);
+
+            DataUtils.writeVarInt(out, bytes.length);
+            out.write(bytes);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return;
+        }
+
+        Bukkit.getServer().sendPluginMessage(PanguSpigot.getInstance(),"pangu",b.toByteArray());
+
+
+    }
+
+    public void sendMultiPart(Plugin plugin, String key, byte[] bytes) {
+        short total = (short) ((bytes.length / 30000) + (bytes.length % 30000 > 0 ? 1 : 0));
+        UUID id = UUID.randomUUID();
+
+        for (short i = 0; i < total; i++) try {
+            ByteArrayOutputStream b = new ByteArrayOutputStream();
+            DataOutputStream out = new DataOutputStream(b);
+
+            out.writeByte(0x03);
+
+            out.writeLong(id.getMostSignificantBits());
+            out.writeLong(id.getLeastSignificantBits());
+            out.writeShort(total);
+            out.writeShort(i);
+
+            byte[] keyBytes = key.getBytes(StandardCharsets.UTF_8);
+            DataUtils.writeVarInt(out, keyBytes.length);
+            out.write(keyBytes);
+
+            byte[] sub = ArrayUtils.subarray(bytes, i * 30000, Math.min(bytes.length, (i + 1) * 30000));
+            DataUtils.writeVarInt(out, sub.length);
+            out.write(sub);
+
+            Bukkit.getServer().sendPluginMessage(plugin,"pangu",b.toByteArray());
+        } catch (IOException e) {
+            e.printStackTrace();
+            return;
+        }
+    }
+
 
     public void sendMultiPart(Collection<Player> players, String key, byte[] bytes) {
         short total = (short) ((bytes.length / 30000) + (bytes.length % 30000 > 0 ? 1 : 0));
@@ -148,4 +208,5 @@ public enum  BridgeManager implements PluginMessageListener {
     public <T> T createProxy(Class<T> clazz) {
         return (T) Proxy.newProxyInstance(BridgeManager.class.getClassLoader(), new Class[]{clazz}, BridgeProxy.INSTANCE);
     }
+
 }

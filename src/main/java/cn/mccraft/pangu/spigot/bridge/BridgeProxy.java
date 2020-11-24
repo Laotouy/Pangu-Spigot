@@ -7,6 +7,7 @@ import com.google.common.collect.Sets;
 import org.apache.commons.lang.ArrayUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
 
 import java.lang.reflect.*;
 import java.util.Arrays;
@@ -32,6 +33,7 @@ public enum BridgeProxy implements InvocationHandler {
 
         Type[] types = method.getGenericParameterTypes();
         Collection<Player> players = null;
+        Plugin plugin = null;
         boolean addAllPlayers = true;
 
         if (args.length > 0) {
@@ -39,19 +41,21 @@ public enum BridgeProxy implements InvocationHandler {
                 players = Collections.singleton((Player) args[0]);
                 addAllPlayers = false;
             } else if (args[0] instanceof Collection) {
-                if (Player.class.isAssignableFrom((Class<?>) ((ParameterizedType)types[0]).getActualTypeArguments()[0])) {
+                if (Player.class.isAssignableFrom((Class<?>) ((ParameterizedType) types[0]).getActualTypeArguments()[0])) {
                     players = (Collection<Player>) args[0];
                     addAllPlayers = false;
                 }
             } else if (args[0].getClass().isArray() && Player.class.isAssignableFrom(args.getClass().getComponentType())) {
                 players = Sets.newHashSet((Player[]) args[0]);
                 addAllPlayers = false;
+            } else if (args[0] instanceof Plugin) {
+                plugin = (Plugin) args[0];
             }
         }
 
         String[] names = Arrays.stream(method.getParameters()).map(Parameter::getName).toArray(String[]::new);
 
-        if (addAllPlayers) {
+        if (addAllPlayers && plugin == null) {
             players = (Collection<Player>) Bukkit.getOnlinePlayers();
         } else {
             args = ArrayUtils.remove(args, 0);
@@ -59,12 +63,19 @@ public enum BridgeProxy implements InvocationHandler {
             names = (String[]) ArrayUtils.remove(names, 0);
         }
 
-        if (players == null || players.isEmpty()) return null;
-
         Persistence persistence = BridgeManager.INSTANCE.getPersistence(bridge.persistence());
         byte[] bytes = persistence.serialize(names, args, types, true);
 
-        BridgeManager.INSTANCE.send(players, bridge.value(), bytes);
+        if (plugin != null) {
+
+            BridgeManager.INSTANCE.send(plugin, bridge.value(), bytes);
+
+        } else if (players != null && !players.isEmpty()) {
+
+            BridgeManager.INSTANCE.send(players, bridge.value(), bytes);
+
+        }
+
         return null;
     }
 }
