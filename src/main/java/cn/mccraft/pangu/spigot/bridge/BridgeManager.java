@@ -136,8 +136,7 @@ public enum  BridgeManager implements PluginMessageListener {
             e.printStackTrace();
             return;
         }
-
-        Bukkit.getServer().sendPluginMessage(PanguSpigot.getInstance(),"pangu",b.toByteArray());
+        ((Player)Bukkit.getServer().getOnlinePlayers().toArray()[0]).sendPluginMessage(PanguSpigot.getInstance(),"pangu",b.toByteArray());
 
 
     }
