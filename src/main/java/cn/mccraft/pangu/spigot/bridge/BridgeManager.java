@@ -79,7 +79,11 @@ public enum  BridgeManager implements PluginMessageListener {
             Solution solution = solutions.get(key);
             if (solution != null) {
                 PanguSpigot.debug("收到 @Bridge 信息 " + key + "，解决方案 " + solution.getMethod().toGenericString());
-                solution.solve(player, data);
+                if (!solution.isWithPlayer()){
+                    solution.solve(null,data);
+                }else {
+                    solution.solve(player, data);
+                }
             } else {
                 PanguSpigot.debug("收到 @Bridge 信息 " + key + "，找不到对应的解决方案!");
             }

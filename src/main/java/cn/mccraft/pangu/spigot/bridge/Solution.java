@@ -35,6 +35,9 @@ public class Solution {
 
         this.methodAccessor = FastReflection.create(method);
     }
+    public boolean isWithPlayer(){
+        return withPlayer;
+    }
 
     public void solve(Player player, byte[] bytes) throws Exception {
         Object[] objects = persistence.deserialize(actualParameterNames, bytes, actualParameterTypes);
@@ -44,6 +47,7 @@ public class Solution {
         methodAccessor.invoke(instance, objects);
         PanguSpigot.debug("成功执行 @Bridge " + method.toGenericString());
     }
+
 
     public Method getMethod() {
         return method;
